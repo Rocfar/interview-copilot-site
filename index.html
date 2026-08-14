@@ -47,25 +47,25 @@
     .toggle{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
     .toggle input{width:17px;height:17px;accent-color:var(--blue)}
     .error{color:#ffadb6}
+    a{color:#73d9ff}
     @media(max-width:520px){.app{padding:14px 12px 28px}.grid{grid-template-columns:1fr}.card{border-radius:16px;padding:13px}.answer{min-height:200px}.actions{grid-template-columns:1fr}.pill{display:none}}
   </style>
 </head>
 <body>
   <main class="app">
     <header>
-      <div><h1>模拟面试回答者</h1><div class="sub">你扮演面试官，AI 扮演候选人</div></div>
+      <div><h1>模拟面试回答者</h1><div class="sub">你扮演面试官，豆包扮演候选人</div></div>
       <span class="pill">练习模式</span>
     </header>
 
     <section class="card">
-      <div class="card-title"><span>接口设置</span><span id="apiState" class="error">待配置</span></div>
+      <div class="card-title"><span>豆包 API 接入</span><span id="apiState" class="error">待配置</span></div>
       <div class="grid">
-        <div><label for="apiBase">API Base</label><input id="apiBase" type="url" placeholder="https://api.example.com/v1"></div>
-        <div><label for="model">模型名</label><input id="model" maxlength="120" placeholder="例如：模型或接入点 ID"></div>
+        <div><label for="apiKey">火山方舟 API Key</label><input id="apiKey" type="password" autocomplete="off" placeholder="粘贴 API Key"></div>
+        <div><label for="model">模型或推理接入点 ID</label><input id="model" maxlength="120" placeholder="模型 ID 或 ep-... 接入点 ID"></div>
       </div>
-      <div style="margin-top:9px"><label for="apiKey">API Key</label><input id="apiKey" type="password" autocomplete="off" placeholder="仅保存在当前浏览器"></div>
-      <div class="actions"><button id="saveSettingsBtn" class="btn secondary">保存接口设置</button></div>
-      <div class="footnote">接口信息只保存在本机浏览器，并直接发送到你填写的 API 地址；请勿在公共设备保存密钥。</div>
+      <div class="actions"><button id="saveSettingsBtn" class="btn secondary">保存豆包配置</button></div>
+      <div class="footnote">豆包接口地址已内置。API Key 仅保留在当前标签页，关闭标签页后清除；模型 ID 保存在当前浏览器。请在<a href="https://console.volcengine.com/ark" target="_blank" rel="noopener noreferrer">火山方舟控制台</a>获取配置。</div>
     </section>
 
     <section class="card">
@@ -82,7 +82,7 @@
       <div id="interim" class="interim"></div>
       <div class="actions">
         <button id="micBtn" class="btn mic">开始语音提问</button>
-        <button id="answerBtn" class="btn">让 AI 回答</button>
+        <button id="answerBtn" class="btn">让豆包回答</button>
       </div>
     </section>
 
@@ -95,16 +95,19 @@
       </div>
     </section>
 
-    <div class="footnote">语音识别由浏览器提供；若当前浏览器不支持，可直接输入问题。AI 回答仅用于模拟练习，请自行判断内容准确性。</div>
+    <div class="footnote">语音识别由浏览器提供；若当前浏览器不支持，可直接输入问题。豆包回答仅用于模拟练习，请自行判断内容准确性。</div>
   </main>
 
 <script>
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const els = { apiBase:$('apiBase'), apiKey:$('apiKey'), model:$('model'), saveSettings:$('saveSettingsBtn'), role:$('role'), length:$('length'), question:$('question'), interim:$('interim'), mic:$('micBtn'), answerBtn:$('answerBtn'), answer:$('answer'), stop:$('stopBtn'), copy:$('copyBtn'), auto:$('autoAnswer'), dot:$('statusDot'), status:$('statusText'), api:$('apiState') };
+  const els = { apiKey:$('apiKey'), model:$('model'), saveSettings:$('saveSettingsBtn'), role:$('role'), length:$('length'), question:$('question'), interim:$('interim'), mic:$('micBtn'), answerBtn:$('answerBtn'), answer:$('answer'), stop:$('stopBtn'), copy:$('copyBtn'), auto:$('autoAnswer'), dot:$('statusDot'), status:$('statusText'), api:$('apiState') };
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const STORAGE_KEY = 'interview-copilot-api-settings';
+  const ARK_ENDPOINT = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
+  const STORAGE_KEY = 'interview-copilot-doubao-settings';
+  const API_KEY_SESSION_KEY = 'interview-copilot-doubao-api-key';
+  const LEGACY_STORAGE_KEY = 'interview-copilot-api-settings';
   const SYSTEM_PROMPT = `你是模拟面试中的候选人。针对面试官的问题，立即给出自然、可以直接说出口的中文示范回答。使用第一人称，先结论后展开；行为题优先采用背景、行动、结果、复盘结构。不得捏造候选人的真实公司、学校、项目、奖项或精确业绩。只输出示范回答正文。`;
   const LENGTH_RULES = {
     quick:'控制在约30到45秒，约150到220字。',
@@ -133,32 +136,31 @@
   }
 
   function saveSettings(showMessage=true){
-    const apiBase = els.apiBase.value.trim().replace(/\/+$/, '');
     const apiKey = els.apiKey.value.trim();
     const model = els.model.value.trim();
-    let parsed;
-    try{ parsed = new URL(apiBase); }
-    catch(_){ throw new Error('请输入有效的 API Base'); }
-    if(parsed.protocol !== 'https:') throw new Error('API Base 必须使用 HTTPS');
-    if(!apiKey) throw new Error('请输入 API Key');
-    if(!model) throw new Error('请输入模型名');
-    const settings = { apiBase, apiKey, model };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    if(!apiKey) throw new Error('请输入火山方舟 API Key');
+    if(!model) throw new Error('请输入模型或推理接入点 ID');
+    sessionStorage.setItem(API_KEY_SESSION_KEY, apiKey);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({model}));
     setApiState(true);
-    if(showMessage) setStatus('接口设置已保存在当前浏览器');
-    return settings;
+    if(showMessage) setStatus('豆包配置已保存，可以开始提问');
+    return {apiKey, model};
   }
 
   function initSettings(){
     const settings = readSettings();
-    els.apiBase.value = settings.apiBase || '';
-    els.apiKey.value = settings.apiKey || '';
+    let apiKey = sessionStorage.getItem(API_KEY_SESSION_KEY) || '';
+    try{
+      const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || '{}');
+      if(!settings.model && legacy.model) settings.model = legacy.model;
+      if(!apiKey && legacy.apiKey) apiKey = legacy.apiKey;
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      if(settings.model) localStorage.setItem(STORAGE_KEY, JSON.stringify({model:settings.model}));
+    }catch(_){ localStorage.removeItem(LEGACY_STORAGE_KEY); }
+    if(apiKey) sessionStorage.setItem(API_KEY_SESSION_KEY, apiKey);
+    els.apiKey.value = apiKey;
     els.model.value = settings.model || '';
-    setApiState(Boolean(settings.apiBase && settings.apiKey && settings.model));
-  }
-
-  function getEndpoint(apiBase){
-    return apiBase.endsWith('/chat/completions') ? apiBase : apiBase + '/chat/completions';
+    setApiState(Boolean(apiKey && settings.model));
   }
 
   function setupRecognition(){
@@ -225,7 +227,7 @@
     els.stop.disabled = false;
     els.answer.className = 'answer';
     els.answer.textContent = '';
-    setStatus('AI 正在组织回答', true);
+    setStatus('豆包正在组织回答', true);
 
     const messages = [{role:'system',content:SYSTEM_PROMPT}];
     for(const item of history.slice(-4)){
@@ -237,7 +239,7 @@
     messages.push({role:'user',content:`${role ? `应聘岗位：${role}\n` : ''}回答长度：${lengthRule}\n面试官问题：${question}`});
 
     try{
-      const response = await fetch(getEndpoint(settings.apiBase), {
+      const response = await fetch(ARK_ENDPOINT, {
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer ' + settings.apiKey},
         body:JSON.stringify({model:settings.model,messages,stream:true,temperature:0.55,max_tokens:els.length.value === 'deep' ? 1200 : 800}),
@@ -276,7 +278,12 @@
       setStatus('回答完成');
     }catch(error){
       if(error.name === 'AbortError') setStatus('已停止生成');
-      else { els.answer.textContent = '暂时无法生成回答：' + error.message; els.answer.className = 'answer error'; setStatus('生成失败', false, true); }
+      else {
+        const message = error instanceof TypeError ? '浏览器未能连接豆包接口，请检查网络；若控制台提示 CORS，则该接口不允许网页直连。' : error.message;
+        els.answer.textContent = '暂时无法生成回答：' + message;
+        els.answer.className = 'answer error';
+        setStatus('生成失败', false, true);
+      }
     }finally{
       controller = null;
       els.answerBtn.disabled = false;
