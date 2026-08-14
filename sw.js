@@ -1,4 +1,4 @@
-const CACHE = "mock-interview-v4";
+const CACHE = "mock-interview-v5";
 const OFFLINE_PAGE = new URL("./index.html", self.registration.scope).href;
 const ASSETS = [new URL("./", self.registration.scope).href, OFFLINE_PAGE, new URL("./manifest.webmanifest", self.registration.scope).href];
 
