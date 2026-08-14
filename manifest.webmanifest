@@ -1,0 +1,10 @@
+{
+  "name": "模拟面试回答者",
+  "short_name": "模拟应答",
+  "description": "你扮演面试官，AI 生成候选人标准示范回答。",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07101f",
+  "theme_color": "#0b1220",
+  "lang": "zh-CN"
+}

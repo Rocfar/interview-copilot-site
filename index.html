@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="模拟应答">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <title>模拟面试回答者</title>
+  <style>
+    :root{--bg:#07101f;--panel:#101b2d;--panel2:#152238;--line:#263753;--text:#edf3ff;--muted:#96a8c4;--blue:#4c8dff;--cyan:#33d6c7;--danger:#ff6b78;--shadow:0 18px 60px rgba(0,0,0,.28)}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{margin:0;min-height:100%;background:radial-gradient(circle at 20% -10%,#18345c 0,transparent 38%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+    body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+    button,input,select,textarea{font:inherit}
+    button{touch-action:manipulation}
+    .app{width:min(760px,100%);min-height:100vh;margin:auto;padding:18px 16px 32px}
+    header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:4px 2px 18px}
+    h1{font-size:22px;line-height:1.2;margin:0 0 6px;letter-spacing:.2px}
+    .sub{color:var(--muted);font-size:13px}
+    .pill{flex:none;border:1px solid rgba(51,214,199,.36);background:rgba(51,214,199,.1);color:#7ff3e7;border-radius:999px;padding:6px 10px;font-size:12px}
+    .card{background:linear-gradient(160deg,rgba(21,34,56,.96),rgba(13,24,42,.96));border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:15px;margin-bottom:12px}
+    .card-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+    input,select,textarea{width:100%;color:var(--text);background:#091424;border:1px solid var(--line);border-radius:11px;padding:11px 12px;outline:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(76,141,255,.12)}
+    textarea{min-height:106px;resize:vertical;line-height:1.55}
+    .question{font-size:16px}
+    .interim{min-height:20px;margin-top:7px;color:#73d9ff;font-size:13px}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:11px}
+    .btn{border:0;border-radius:12px;padding:12px 14px;color:#fff;font-weight:700;background:var(--blue);cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn.mic{background:linear-gradient(135deg,#1f6eff,#31b5ff)}
+    .btn.mic.live{background:linear-gradient(135deg,#ed4f63,#ff8368);animation:pulse 1.4s infinite}
+    .btn.secondary{background:#1c2b43;color:#cfdbed;border:1px solid #30425f}
+    .btn.stop{background:#342332;color:#ffb7c0;border:1px solid #684051}
+    @keyframes pulse{50%{box-shadow:0 0 0 7px rgba(255,107,120,.12)}}
+    .answer{min-height:220px;white-space:pre-wrap;line-height:1.75;font-size:16px;color:#f6f8fc}
+    .placeholder{color:var(--muted)}
+    .status{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+    .dot{width:7px;height:7px;border-radius:50%;background:#62718a}
+    .dot.live{background:var(--cyan);box-shadow:0 0 9px var(--cyan)}
+    .footnote{color:var(--muted);font-size:12px;line-height:1.6;padding:4px 3px}
+    .toggle{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+    .toggle input{width:17px;height:17px;accent-color:var(--blue)}
+    .error{color:#ffadb6}
+    @media(max-width:520px){.app{padding:14px 12px 28px}.grid{grid-template-columns:1fr}.card{border-radius:16px;padding:13px}.answer{min-height:200px}.actions{grid-template-columns:1fr}.pill{display:none}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div><h1>模拟面试回答者</h1><div class="sub">你扮演面试官，AI 扮演候选人</div></div>
+      <span class="pill">练习模式</span>
+    </header>
+
+    <section class="card">
+      <div class="card-title"><span>接口设置</span><span id="apiState" class="error">待配置</span></div>
+      <div class="grid">
+        <div><label for="apiBase">API Base</label><input id="apiBase" type="url" placeholder="https://api.example.com/v1"></div>
+        <div><label for="model">模型名</label><input id="model" maxlength="120" placeholder="例如：模型或接入点 ID"></div>
+      </div>
+      <div style="margin-top:9px"><label for="apiKey">API Key</label><input id="apiKey" type="password" autocomplete="off" placeholder="仅保存在当前浏览器"></div>
+      <div class="actions"><button id="saveSettingsBtn" class="btn secondary">保存接口设置</button></div>
+      <div class="footnote">接口信息只保存在本机浏览器，并直接发送到你填写的 API 地址；请勿在公共设备保存密钥。</div>
+    </section>
+
+    <section class="card">
+      <div class="card-title"><span>回答设定</span></div>
+      <div class="grid">
+        <div><label for="role">应聘岗位（可选）</label><input id="role" maxlength="80" placeholder="例如：产品经理"></div>
+        <div><label for="length">回答长度</label><select id="length"><option value="quick">快速：30—45秒</option><option value="standard" selected>标准：60—90秒</option><option value="deep">深入：2分钟左右</option></select></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title"><span>面试官问题</span><label class="toggle"><input id="autoAnswer" type="checkbox" checked>语音结束后自动回答</label></div>
+      <textarea id="question" class="question" maxlength="2000" placeholder="点击麦克风提问，或在这里输入问题……"></textarea>
+      <div id="interim" class="interim"></div>
+      <div class="actions">
+        <button id="micBtn" class="btn mic">开始语音提问</button>
+        <button id="answerBtn" class="btn">让 AI 回答</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title"><span>候选人示范回答</span><div class="status"><span id="statusDot" class="dot"></span><span id="statusText">等待问题</span></div></div>
+      <div id="answer" class="answer placeholder">答案会在这里逐字生成。回答不引用你的个人简历，只提供标准示范表达。</div>
+      <div class="actions">
+        <button id="stopBtn" class="btn stop" disabled>停止生成</button>
+        <button id="copyBtn" class="btn secondary">复制回答</button>
+      </div>
+    </section>
+
+    <div class="footnote">语音识别由浏览器提供；若当前浏览器不支持，可直接输入问题。AI 回答仅用于模拟练习，请自行判断内容准确性。</div>
+  </main>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const els = { apiBase:$('apiBase'), apiKey:$('apiKey'), model:$('model'), saveSettings:$('saveSettingsBtn'), role:$('role'), length:$('length'), question:$('question'), interim:$('interim'), mic:$('micBtn'), answerBtn:$('answerBtn'), answer:$('answer'), stop:$('stopBtn'), copy:$('copyBtn'), auto:$('autoAnswer'), dot:$('statusDot'), status:$('statusText'), api:$('apiState') };
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const STORAGE_KEY = 'interview-copilot-api-settings';
+  const SYSTEM_PROMPT = `你是模拟面试中的候选人。针对面试官的问题，立即给出自然、可以直接说出口的中文示范回答。使用第一人称，先结论后展开；行为题优先采用背景、行动、结果、复盘结构。不得捏造候选人的真实公司、学校、项目、奖项或精确业绩。只输出示范回答正文。`;
+  const LENGTH_RULES = {
+    quick:'控制在约30到45秒，约150到220字。',
+    standard:'控制在约60到90秒，约280到420字。',
+    deep:'控制在约2分钟，约500到700字。'
+  };
+  let recognition = null;
+  let listening = false;
+  let controller = null;
+  let history = [];
+
+  const setStatus = (text, live=false, error=false) => {
+    els.status.textContent = text;
+    els.dot.className = 'dot' + (live ? ' live' : '');
+    els.status.className = error ? 'error' : '';
+  };
+
+  function setApiState(configured){
+    els.api.textContent = configured ? '已配置' : '待配置';
+    els.api.className = configured ? '' : 'error';
+  }
+
+  function readSettings(){
+    try{ return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+    catch(_){ return {}; }
+  }
+
+  function saveSettings(showMessage=true){
+    const apiBase = els.apiBase.value.trim().replace(/\/+$/, '');
+    const apiKey = els.apiKey.value.trim();
+    const model = els.model.value.trim();
+    let parsed;
+    try{ parsed = new URL(apiBase); }
+    catch(_){ throw new Error('请输入有效的 API Base'); }
+    if(parsed.protocol !== 'https:') throw new Error('API Base 必须使用 HTTPS');
+    if(!apiKey) throw new Error('请输入 API Key');
+    if(!model) throw new Error('请输入模型名');
+    const settings = { apiBase, apiKey, model };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    setApiState(true);
+    if(showMessage) setStatus('接口设置已保存在当前浏览器');
+    return settings;
+  }
+
+  function initSettings(){
+    const settings = readSettings();
+    els.apiBase.value = settings.apiBase || '';
+    els.apiKey.value = settings.apiKey || '';
+    els.model.value = settings.model || '';
+    setApiState(Boolean(settings.apiBase && settings.apiKey && settings.model));
+  }
+
+  function getEndpoint(apiBase){
+    return apiBase.endsWith('/chat/completions') ? apiBase : apiBase + '/chat/completions';
+  }
+
+  function setupRecognition(){
+    if(!SpeechRecognition) return null;
+    const rec = new SpeechRecognition();
+    rec.lang = 'zh-CN';
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    let finalText = '';
+    rec.onstart = () => {
+      listening = true;
+      finalText = '';
+      els.mic.classList.add('live');
+      els.mic.textContent = '正在听，点此结束';
+      els.interim.textContent = '请开始提问…';
+      setStatus('正在识别问题', true);
+    };
+    rec.onresult = event => {
+      let interim = '';
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        const text = event.results[i][0].transcript;
+        if(event.results[i].isFinal) finalText += text;
+        else interim += text;
+      }
+      if(finalText) els.question.value = finalText;
+      els.interim.textContent = interim ? '识别中：' + interim : '';
+    };
+    rec.onerror = event => {
+      const messages = { 'not-allowed':'未获得麦克风权限', 'no-speech':'没有识别到语音', 'network':'语音识别网络异常', 'audio-capture':'未检测到麦克风' };
+      setStatus(messages[event.error] || ('识别失败：' + event.error), false, true);
+    };
+    rec.onend = () => {
+      listening = false;
+      els.mic.classList.remove('live');
+      els.mic.textContent = '开始语音提问';
+      els.interim.textContent = '';
+      if(finalText && els.auto.checked) requestAnswer();
+      else if(finalText) setStatus('问题识别完成');
+    };
+    return rec;
+  }
+
+  function toggleMic(){
+    if(!SpeechRecognition){
+      setStatus('当前浏览器不支持语音识别，请手动输入', false, true);
+      els.question.focus();
+      return;
+    }
+    if(listening){ recognition && recognition.stop(); return; }
+    recognition = setupRecognition();
+    try{ recognition.start(); }catch(e){ setStatus('麦克风启动失败，请重试', false, true); }
+  }
+
+  async function requestAnswer(){
+    const question = els.question.value.trim();
+    if(!question){ setStatus('请先提出一个问题', false, true); els.question.focus(); return; }
+    let settings;
+    try{ settings = saveSettings(false); }
+    catch(error){ setStatus(error.message, false, true); return; }
+    if(controller) controller.abort();
+    controller = new AbortController();
+    els.answerBtn.disabled = true;
+    els.stop.disabled = false;
+    els.answer.className = 'answer';
+    els.answer.textContent = '';
+    setStatus('AI 正在组织回答', true);
+
+    const messages = [{role:'system',content:SYSTEM_PROMPT}];
+    for(const item of history.slice(-4)){
+      messages.push({role:'user',content:item.question.slice(0,1000)});
+      messages.push({role:'assistant',content:item.answer.slice(0,2000)});
+    }
+    const role = els.role.value.trim();
+    const lengthRule = LENGTH_RULES[els.length.value] || LENGTH_RULES.standard;
+    messages.push({role:'user',content:`${role ? `应聘岗位：${role}\n` : ''}回答长度：${lengthRule}\n面试官问题：${question}`});
+
+    try{
+      const response = await fetch(getEndpoint(settings.apiBase), {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer ' + settings.apiKey},
+        body:JSON.stringify({model:settings.model,messages,stream:true,temperature:0.55,max_tokens:els.length.value === 'deep' ? 1200 : 800}),
+        signal:controller.signal
+      });
+      if(!response.ok){
+        const msg = await response.text();
+        throw new Error(msg.slice(0,300) || ('HTTP ' + response.status));
+      }
+      if(!response.body) throw new Error('浏览器不支持流式响应');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while(true){
+        const {done,value} = await reader.read();
+        if(done) break;
+        buffer += decoder.decode(value,{stream:true});
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for(const line of lines){
+          const item = line.trim();
+          if(!item.startsWith('data:')) continue;
+          const raw = item.slice(5).trim();
+          if(!raw || raw === '[DONE]') continue;
+          try{
+            const data = JSON.parse(raw);
+            const delta = data.choices?.[0]?.delta?.content || '';
+            if(delta){ els.answer.textContent += delta; window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }
+          }catch(_){ }
+        }
+      }
+      const answer = els.answer.textContent.trim();
+      if(!answer) throw new Error('模型没有返回文本');
+      history.push({question,answer});
+      history = history.slice(-6);
+      setStatus('回答完成');
+    }catch(error){
+      if(error.name === 'AbortError') setStatus('已停止生成');
+      else { els.answer.textContent = '暂时无法生成回答：' + error.message; els.answer.className = 'answer error'; setStatus('生成失败', false, true); }
+    }finally{
+      controller = null;
+      els.answerBtn.disabled = false;
+      els.stop.disabled = true;
+    }
+  }
+
+  els.saveSettings.addEventListener('click', () => {
+    try{ saveSettings(true); }
+    catch(error){ setApiState(false); setStatus(error.message, false, true); }
+  });
+  els.mic.addEventListener('click', toggleMic);
+  els.answerBtn.addEventListener('click', requestAnswer);
+  els.stop.addEventListener('click', () => controller && controller.abort());
+  els.copy.addEventListener('click', async () => {
+    const text = els.answer.textContent.trim();
+    if(!text || els.answer.classList.contains('placeholder')) return;
+    try{ await navigator.clipboard.writeText(text); setStatus('回答已复制'); }
+    catch(_){ setStatus('复制失败，请长按文字复制', false, true); }
+  });
+  els.question.addEventListener('keydown', e => { if((e.ctrlKey || e.metaKey) && e.key === 'Enter') requestAnswer(); });
+  if('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  initSettings();
+})();
+</script>
+</body>
+</html>
