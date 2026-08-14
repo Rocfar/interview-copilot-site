@@ -1,6 +1,13 @@
-const CACHE = "mock-interview-v5";
+const CACHE = "mock-interview-v6";
 const OFFLINE_PAGE = new URL("./index.html", self.registration.scope).href;
-const ASSETS = [new URL("./", self.registration.scope).href, OFFLINE_PAGE, new URL("./manifest.webmanifest", self.registration.scope).href];
+const ASSETS = [
+  new URL("./", self.registration.scope).href,
+  OFFLINE_PAGE,
+  new URL("./manifest.webmanifest", self.registration.scope).href,
+  new URL("./vendor/pdfjs/pdf.min.mjs", self.registration.scope).href,
+  new URL("./vendor/pdfjs/pdf.worker.min.mjs", self.registration.scope).href,
+  new URL("./vendor/mammoth/mammoth.browser.min.js", self.registration.scope).href
+];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
